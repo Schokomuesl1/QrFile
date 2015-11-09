@@ -19,8 +19,7 @@ import (
 )
 
 const qrLevel = qr.L
-//const qrSize uint64 = 1608 // this needs to be even, since we encode binary using 2 hex chars
-const qrSize uint64 = 408 // this needs to be even, since we encode binary using 2 hex chars
+const qrSize uint64 = 1608 // this needs to be even, since we encode binary using 2 hex chars
 const qrHeaderSize uint64 = 60 // 3 uint64 as string
 const qrDataSize uint64 = qrSize - qrHeaderSize
 const uintStringLength = 20
@@ -29,8 +28,7 @@ const maxIndexPos = 20
 const payloadLengthPos = 40
 const payloadPos = 60
 const outputFormat = "%20d%20d%20d%s"
-//const payloadFormat = "%1548s"
-const payloadFormat = "%348s"
+const payloadFormat = "%1548s"
 
 type QrFile struct {
     Fname string
