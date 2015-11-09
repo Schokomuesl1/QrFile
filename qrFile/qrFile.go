@@ -19,7 +19,8 @@ import (
 )
 
 const qrLevel = qr.L
-const qrSize uint64 = 1608 // this needs to be even, since we encode binary using 2 hex chars
+//const qrSize uint64 = 1608 // this needs to be even, since we encode binary using 2 hex chars
+const qrSize uint64 = 408 // this needs to be even, since we encode binary using 2 hex chars
 const qrHeaderSize uint64 = 60 // 3 uint64 as string
 const qrDataSize uint64 = qrSize - qrHeaderSize
 const uintStringLength = 20
@@ -28,7 +29,8 @@ const maxIndexPos = 20
 const payloadLengthPos = 40
 const payloadPos = 60
 const outputFormat = "%20d%20d%20d%s"
-const payloadFormat = "%1548s"
+//const payloadFormat = "%1548s"
+const payloadFormat = "%348s"
 
 type QrFile struct {
     Fname string
@@ -78,7 +80,7 @@ func (elem* QrElements) FromPNGs(workPath string, fnamePrefix string) error {
         if strings.Index(v.Name(), fnamePrefix) == 0 && strings.Index(v.Name(), ".png") == len(v.Name()) - 4 {
             var newElement QrElement
             err := newElement.ParsePNG(fmt.Sprintf("%s/%s", workPath, v.Name()))
-            log.Print(elem.Len())
+            //log.Print(elem.Len())
             if err == nil {
                 log.Print(newElement.Index)
                 log.Print(newElement.MaxIndex)
@@ -108,6 +110,7 @@ func (elem* QrElements) FromPNGs(workPath string, fnamePrefix string) error {
 
 func (elem* QrElements) StoreData(fileObject* QrFile) error {
     for _,v := range elem.Elements {
+        log.Printf("|%s|", v.Payload)
         buffer, err := hex.DecodeString(v.Payload)
         if err != nil {
             return err
@@ -119,7 +122,7 @@ func (elem* QrElements) StoreData(fileObject* QrFile) error {
 
 func (elem* QrElement) ParsePNG(fname string) error {
     var result bytes.Buffer
-    cmd := exec.Command("zbarimg", "--quiet", fname)
+    cmd := exec.Command("zbarimg", "--quiet", "-Sdisable", "-Sqrcode.enable", fname)
     cmd.Stdout = &result
     err := cmd.Run()
     if (err != nil) {
@@ -194,7 +197,7 @@ func (elem *QrElement) ParseString(str string) (err error ){
     if err != nil {
         return err
     }
-    elem.Payload = string(str[payloadPos:])
+    elem.Payload = string(strings.Trim(str[payloadPos:], " "))
     return nil
 }
 
