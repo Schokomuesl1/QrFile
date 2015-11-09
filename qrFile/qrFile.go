@@ -30,8 +30,6 @@ const payloadPos = 60
 const outputFormat = "%20d%20d%20d%s"
 const payloadFormat = "%1548s"
 
-const gifDelay = 100 /// display each frame for 1 second / giving in 100th of a second
-
 type QrFile struct {
     Fname string
     Data []byte
