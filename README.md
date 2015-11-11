@@ -24,12 +24,12 @@ A small command line tool is included in the example folder.
 
 If provided with the --in parameter, qrFileApp converts the file provided into a set of png images containing the file contents encoded in QR images.
 
-    go run qrFileAPp.go --in ~/test.txt
+    go run qrFileApp.go --in ~/test.txt
 
 If no named arguments are provided, qrFileApp reads the argument list as a file list containing images. It then tries to restore the contained data, writing the results into the default folder (./output_dir) using the default filename (result).
 
-    go run qrFileAPp.go img_dir/*
+    go run qrFileApp.go img_dir/*
 
 The tool can be started with the --interactive flag (and, optionally, a --port flag). If so, a _very_ rudimentary web server is started which provides an interface to encode a file and display the resulting data.
 
-    go run qrFileAPp.go --interactive
+    go run qrFileApp.go --interactive
