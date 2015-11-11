@@ -1,0 +1,5 @@
+<h1>qrFileApp Interactive Mode</h1>
+<h2>Results for file {{.Filename}}</h2>
+<table>
+{{range .Images}}<tr><td>Image: {{ . }}</td><tr><td><img src="/img/{{ . }}" height="800"></td></tr>{{else}}<td>No images available.</td>{{end}}
+</table>
