@@ -74,7 +74,7 @@ func main() {
     } else {
         // default to output mode
         if len(flag.Args()) == 0 {
-            log.Fatal("Output modes requires at least one input file.")
+            log.Fatal("Output mode requires at least one input file.")
         }
         err := restoreFileFromQRImages(flag.Args(), fmt.Sprintf("%s/%s", outDir, outFile))
         if err != nil {
