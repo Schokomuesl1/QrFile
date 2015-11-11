@@ -15,6 +15,65 @@ import (
     "strings"
 )
 
+func main() {
+    var outDir string
+    var imageDir string
+    var inFile string
+    var imagePrefix string
+    var outFile string
+    flag.StringVar(&outDir, "outputDirectory", "./output_dir", "Directory where result files are stored.")
+    flag.StringVar(&imageDir, "imageDirectory", "./img_dir", "Directory where resulting image files")
+    flag.StringVar(&imagePrefix, "imagePrefix", "img_", "Prefix of the resulting images in input mode.")
+    flag.StringVar(&inFile, "in", "", "File to be converted in input mode. Providing an input file selects input mode.")
+    flag.StringVar(&outFile, "out", "result", "File to store the extracted data to.")
+
+    interactive := flag.Bool("interactive", false, "If this is set, a small http server is started; the site provides a rudimentary interface to convert a file to QR images and display them.")
+    port := flag.Int("port", 8080, "Http port for the web server.")
+
+    flag.Parse()
+
+    if *interactive {
+        // start web server instance.
+        log.Printf("Starting web server on port %d", *port)
+        http.HandleFunc("/", httpHandler)
+        http.HandleFunc("/receive/", handleUploadedFile)
+        // create a temporary directory for the images:
+        tempDir, err := ioutil.TempDir(os.TempDir(), "qrFileTempDir")
+        if err != nil {
+            log.Fatal("Unable to create temporary directory...")
+            return
+        }
+        globTempDir = tempDir
+        log.Print("Created temporary image directory: ", tempDir)
+
+        // make sure we remove the temoporary directory when we are finished
+        defer os.RemoveAll(tempDir)
+
+        // serve the temporary folders contents as static data...
+        http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir(tempDir))))
+        // and start the web server on the defined port
+        http.ListenAndServe(":"+strconv.Itoa(*port), nil)
+    } else {
+        if len(inFile) > 0 {
+            err := createQRFilesFromFile(inFile, imageDir, imagePrefix)
+            if err != nil {
+                log.Fatalf("Error while handling input file %s: %s", inFile, err)
+            }
+        } else {
+            // default to output mode
+            if len(flag.Args()) == 0 {
+                log.Fatal("Output mode requires at least one input file.")
+            }
+            err := restoreFileFromQRImages(flag.Args(), fmt.Sprintf("%s/%s", outDir, outFile))
+            if err != nil {
+                log.Fatalf("Error while handling output files %s: %s", flag.Args(), err)
+            }
+        }
+    }
+}
+
+// methods encapsulating qrFile both directions (file -> qr, qr -> file)
+
 func createQRFilesFromFile(inFile string, imgDir string, imgPrefix string) error {
     log.Printf("Creating QR codes for file %s into folder %s using image prefix %s.", inFile, imgDir, imgPrefix)
     qrf, err := qrFile.FromFile(inFile)
@@ -59,13 +118,13 @@ func restoreFileFromQRImages(fileList []string, outputFilename string) error {
     return nil
 }
 
+// http handlers for interactive mode
 func httpHandler(w http.ResponseWriter, r *http.Request) {
     t, _ := template.ParseFiles("template/index.html")
     t.Execute(w, nil)
 }
 
 func handleUploadedFile(w http.ResponseWriter, r *http.Request) {
-    // the FormFile function takes in the POST input id file
     file, header, err := r.FormFile("file")
     log.Print("Handling request for uploaded file %s", file)
 
@@ -95,12 +154,13 @@ func handleUploadedFile(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintln(w, "An error occurred, please check log file.")
         return
     }
+    tempfile.Close()
 
     // now process it, create qr images
     err = createQRFilesFromFile(tempfile.Name(), globTempDir, header.Filename+"_qr_")
 
     if err != nil {
-        log.Print(w, "Error parsing files: %s", err.Error())
+        log.Print("Error parsing file: %s", err.Error())
         fmt.Fprintln(w, "An error occurred, please check log file.")
         return
     }
@@ -121,57 +181,3 @@ func handleUploadedFile(w http.ResponseWriter, r *http.Request) {
 }
 
 var globTempDir string = ""
-
-func main() {
-    var outDir string
-    var imageDir string
-    var inFile string
-    var imagePrefix string
-    var outFile string
-    flag.StringVar(&outDir, "outputDirectory", "./output_dir", "Directory where result files are stored.")
-    flag.StringVar(&imageDir, "imageDirectory", "./img_dir", "Directory where resulting image files")
-    flag.StringVar(&imagePrefix, "imagePrefix", "img_", "Prefix of the resulting images in input mode.")
-    flag.StringVar(&inFile, "in", "", "File to be converted in input mode. Providing an input file selects input mode.")
-    flag.StringVar(&outFile, "out", "result", "File to store the extracted data to.")
-    interactive := flag.Bool("interactive", false, "If this is set, a small http server is started; the site provides a rudimentary interface to convert a file to QR images and display them.")
-    port := flag.Int("port", 8080, "Http port for the web server.")
-
-    flag.Parse()
-
-    if *interactive {
-        // start web server instance.
-        log.Printf("Starting web server on port %d", *port)
-        http.HandleFunc("/", httpHandler)
-        http.HandleFunc("/receive/", handleUploadedFile)
-        // create a temporary directory for the images:
-        tempDir, err := ioutil.TempDir(os.TempDir(), "qrFileTempDir")
-        if err != nil {
-            log.Fatal("Unable to create temporary directory...")
-            return
-        }
-        globTempDir = tempDir
-        log.Print("TempDir: ", tempDir)
-        // make sure we remove the temoporary directory as well...
-        defer os.RemoveAll(tempDir)
-
-        // serve the temporary folders contents as static data...
-        http.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir(tempDir))))
-        http.ListenAndServe(":"+strconv.Itoa(*port), nil)
-    } else {
-        if len(inFile) > 0 {
-            err := createQRFilesFromFile(inFile, imageDir, imagePrefix)
-            if err != nil {
-                log.Fatalf("Error while handling input file %s: %s", inFile, err)
-            }
-        } else {
-            // default to output mode
-            if len(flag.Args()) == 0 {
-                log.Fatal("Output mode requires at least one input file.")
-            }
-            err := restoreFileFromQRImages(flag.Args(), fmt.Sprintf("%s/%s", outDir, outFile))
-            if err != nil {
-                log.Fatalf("Error while handling output files %s: %s", flag.Args(), err)
-            }
-        }
-    }
-}
