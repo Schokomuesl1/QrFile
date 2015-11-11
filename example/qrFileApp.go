@@ -67,9 +67,11 @@ func httpHandler(w http.ResponseWriter, r *http.Request) {
 func handleUploadedFile(w http.ResponseWriter, r *http.Request) {
     // the FormFile function takes in the POST input id file
     file, header, err := r.FormFile("file")
+    log.Print("Handling request for uploaded file %s", file)
 
     if err != nil {
-        fmt.Fprintln(w, err)
+        log.Print(err)
+        fmt.Fprintln(w, "An error occurred, please check log file.")
         return
     }
 
@@ -77,31 +79,37 @@ func handleUploadedFile(w http.ResponseWriter, r *http.Request) {
     tempfile, err := ioutil.TempFile(os.TempDir(), "qrFileTemp")
 
     if err != nil {
-        fmt.Fprintf(w, "Unable to create the temporary file for writing. Check your write access privilege")
+        log.Print(w, "Unable to create the temporary file.")
+        fmt.Fprintln(w, "An error occurred, please check log file.")
         return
     }
+    log.Print("Created temporary file %s", tempfile.Name())
+
     // make sure to delete the file when we are done
     defer os.Remove(tempfile.Name())
-    // write the content from POST to the file
+
+    // copy POST data into the temporary file
     _, err = io.Copy(tempfile, file)
     if err != nil {
-        fmt.Fprintln(w, err)
+        log.Print(err)
+        fmt.Fprintln(w, "An error occurred, please check log file.")
         return
     }
 
-    // now process the file
+    // now process it, create qr images
     err = createQRFilesFromFile(tempfile.Name(), globTempDir, header.Filename+"_qr_")
 
     if err != nil {
-        fmt.Fprintf(w, "Error parsing files: %s", err.Error())
+        log.Print(w, "Error parsing files: %s", err.Error())
+        fmt.Fprintln(w, "An error occurred, please check log file.")
         return
     }
     // store the image paths...
     images, _ := filepath.Glob(globTempDir + "/" + header.Filename + "_qr_*.png")
-    log.Printf("Found %d images in %s", len(images), globTempDir+"/"+header.Filename+"_qr_*.png")
     for i, v := range images {
         images[i] = v[len(globTempDir+"/"):]
     }
+    // fill page data struct with the relevant file names...
     pageData := struct {
         Filename string
         Images   []string
