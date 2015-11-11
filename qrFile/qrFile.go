@@ -11,10 +11,10 @@ import (
     "fmt"
     "image"
     "image/png"
-    "io/ioutil"
     "log"
     "os"
     "os/exec"
+    "path/filepath"
     "sort"
     "strconv"
     "strings"
@@ -28,7 +28,8 @@ const qrLevel = qr.L
 const qrSize uint64 = 1608
 
 // qrHeaderSize defines the amount of space each header takes up
-const qrHeaderSize uint64 = 60 // 3 uint64 as string
+const qrHeaderSize uint64 = 60
+
 // qrDataSize
 const qrDataSize uint64 = qrSize - qrHeaderSize
 
@@ -92,7 +93,7 @@ func GetElements(payload string) (elements *QrElements, err error) {
     elements = MakeQrElements(maxCount)
     var i uint64
     for i = 0; i < maxCount; i++ {
-        log.Printf("Creating element: %d %d", i, maxCount)
+        //log.Printf("Creating element: %d %d", i, maxCount)
         if int((i+1)*qrDataSize) > len(payload) {
             elements.Elements[i], err = GetElement(i, maxCount-1, payload[i*qrDataSize:])
         } else {
@@ -230,7 +231,7 @@ func (elem *QrElements) WritePNGs(workPath string, fnamePrefix string) error {
     for i, v := range elem.Elements {
         v := v // we need to shadow v here so we work on copies
         go func(i int, v *QrElement) {
-            log.Printf("Creating png for: %d %d %d %d |%s...|", i, v.Index, v.MaxIndex, v.PayloadLength, v.Payload[0:10])
+            //log.Printf("Creating png for: %d %d %d %d |%s...|", i, v.Index, v.MaxIndex, v.PayloadLength, v.Payload[0:10])
             qr, err := v.AsQR()
             if err != nil {
                 control <- err
@@ -238,7 +239,7 @@ func (elem *QrElements) WritePNGs(workPath string, fnamePrefix string) error {
 
             imgByte := qr.PNG()
             img, _, _ := image.Decode(bytes.NewReader(imgByte))
-            var fname = fmt.Sprintf("%s%s%d.png", workPath, fnamePrefix, i)
+            var fname = fmt.Sprintf("%s/%s%d.png", workPath, fnamePrefix, i)
             out, err := os.Create(fname)
             /*if err != nil {
                 control <- err
@@ -265,24 +266,31 @@ func (elem *QrElements) WritePNGs(workPath string, fnamePrefix string) error {
 }
 
 // FromPNGs reads a set of png files & stores their contents in a set of QrElement structs. Also provides basic sanity tests (complete set,
-// no duplicates etc...).
-func (elem *QrElements) FromPNGs(workPath string, fnamePrefix string) error {
-    dirContent, err := ioutil.ReadDir(workPath)
-    if err != nil {
-        return err
+// no duplicates etc...). The file list may contain wildcards (each entry is parsed using filepath.Glob)
+func (elem *QrElements) FromPNGs(files []string) error {
+    fileList := make([]string, 0)
+    for _, entry := range files {
+        files, _ := filepath.Glob(entry)
+        fileList = append(fileList, files...)
     }
+    if len(fileList) == 0 {
+        return errors.New(fmt.Sprintf("No files found for input %s", strings.Join(files, ", ")))
+    }
+
     // spread this into goroutines, collect results afterwards
-    control := make(chan *QrElement, len(dirContent))
-    for _, v := range dirContent {
+    control := make(chan *QrElement, len(fileList))
+    for _, v := range fileList {
         go func(fname string) {
-            if strings.Index(fname, fnamePrefix) == 0 && strings.Index(fname, ".png") == len(fname)-4 {
+            // only handle png files
+            if strings.Index(strings.ToLower(fname), ".png") == len(fname)-4 {
                 newElement := new(QrElement)
-                err := newElement.ParsePNG(fmt.Sprintf("%s/%s", workPath, fname))
-                log.Print("Handling file ", fname)
+                err := newElement.ParsePNG(fmt.Sprintf(fname))
+                //log.Print("Handling file ", fname)
                 if err == nil {
-                    log.Printf("Element created: %d %d %d |%s...|", newElement.Index, newElement.MaxIndex, newElement.PayloadLength, newElement.Payload[0:10])
+                    //log.Printf("Element created: %d %d %d |%s...|", newElement.Index, newElement.MaxIndex, newElement.PayloadLength, newElement.Payload[0:10])
                     control <- newElement
                 } else {
+                    log.Print(err.Error())
                     log.Print("No element created.")
                     control <- nil
                 }
@@ -290,11 +298,11 @@ func (elem *QrElements) FromPNGs(workPath string, fnamePrefix string) error {
                 log.Print("Not handling file ", fname)
                 control <- nil // we have to notify also if we do not handle the file
             }
-        }(v.Name())
+        }(v)
     }
 
     // wait for all goroutines to return before starting
-    for i := 0; i < len(dirContent); i++ {
+    for i := 0; i < len(fileList); i++ {
         // consume the results
         result := <-control
         if result != nil {
@@ -304,7 +312,7 @@ func (elem *QrElements) FromPNGs(workPath string, fnamePrefix string) error {
         //}
     }
 
-    log.Printf("Extracted %d elements", elem.Len())
+    //log.Printf("Extracted %d elements", elem.Len())
     if len(elem.Elements) == 0 {
         return errors.New("No elements extraced.")
     }
@@ -324,7 +332,7 @@ func (elem *QrElements) FromPNGs(workPath string, fnamePrefix string) error {
 // StoreData writes the data stored in all QrElement structs in a provided QrFile object. The QrFile object then is used to write the contents to disc.
 func (elem *QrElements) StoreData(fileObject *QrFile) error {
     for _, v := range elem.Elements {
-        log.Printf("Storing data for %d %d %d |%s...|", v.Index, v.MaxIndex, v.PayloadLength, v.Payload[0:10])
+        //log.Printf("Storing data for %d %d %d |%s...|", v.Index, v.MaxIndex, v.PayloadLength, v.Payload[0:10])
         buffer, err := hex.DecodeString(v.Payload)
         if err != nil {
             return err
