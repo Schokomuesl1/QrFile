@@ -1,6 +1,6 @@
 # qrFile
 
-qrFile provides operations to convert a file to a set of QR code images and eventually restore this file from the image set. The functionality is contained in the qrFile package.
+qrFile provides operations to convert a file to a set of QR code images and eventually restore this file from the image set. The functionality is contained in the qrFile package. Reading QR Codes is realized using zbar (http://zbar.sourceforge.net/) for parsing.
 
 ## Sample implementation
 
