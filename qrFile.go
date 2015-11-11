@@ -1,4 +1,5 @@
 // Package qrFile provides operations to store files in QR-Codes and convert those images back to files.
+// zbar (http://zbar.sourceforge.net/) is used for reading QR images; it must be available in $PATH.
 
 package qrFile
 
